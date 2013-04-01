@@ -48,7 +48,7 @@ class GutenbergDownloader :
         metas = []
         metas.append(E.META(name="author", value=self.bookinfo.author       ))
         metas.append(E.META(name="DC.title", value=self.bookinfo.title ))
-        if self.bookinfo.year :
+        if hasattr(self.bookinfo, "year") :
             metas.append(E.META(name="date",   value=self.bookinfo.year+"-00-00"))
         htmlbody = E.BODY(E.H1(escape(self.bookinfo.title)))
         target = E.HTML(
@@ -62,12 +62,14 @@ class GutenbergDownloader :
             htmlbody
             )
         for chap in range(first - 1, last) :
+            chapter = self.bookinfo.chapters[chap]
             content = self.fetch(
                 self.gutenberg_url.format(
                     book=self.book,
-                    chapter = self.bookinfo.chapters[chap]
+                    chapter = chapter,
                     )
                 ).get_element_by_id("gutenb")
+            content.set("id","chapter"+chapter)
             for h2 in content.iterchildren(tag="h2") : 
                 h2.set("class","chapter")
             htmlbody.append(content)
