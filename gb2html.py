@@ -48,7 +48,8 @@ class GutenbergDownloader :
         metas = []
         metas.append(E.META(name="author", value=self.bookinfo.author       ))
         metas.append(E.META(name="DC.title", value=self.bookinfo.title ))
-        metas.append(E.META(name="date",   value=self.bookinfo.year+"-00-00"))
+        if self.bookinfo.year :
+            metas.append(E.META(name="date",   value=self.bookinfo.year+"-00-00"))
         htmlbody = E.BODY(E.H1(escape(self.bookinfo.title)))
         target = E.HTML(
             E.HEAD(
