@@ -9,6 +9,7 @@ from cgi        import escape
 
 class GutenbergDownloader :
     gutenberg_url = "http://gutenberg.spiegel.de/buch/{book}/{chapter}"
+    chapter_tags  = [ "h2", "h3" ]
     class BookInfo:
         def __init__(self, doctree) :
             metadata_div = doctree.get_element_by_id("metadata")
@@ -70,8 +71,9 @@ class GutenbergDownloader :
                     )
                 ).get_element_by_id("gutenb")
             content.set("id","chapter"+chapter)
-            for h2 in content.iterchildren(tag="h2") : 
-                h2.set("class","chapter")
+            for tags in self.chapter_tags : 
+                for tag in content.iterchildren(tag=tags) : 
+                    tag.set("class","chapter")
             htmlbody.append(content)
         return html_string(target)
 
