@@ -29,21 +29,28 @@ class GutenbergDownloader :
         def __getattr__(self, attr) : 
             return self.info[attr]
 
-    def __init__(self,book, first = 1, last = -1) :
+    def __init__(self,book) :
         self.book  = book
-        self.first = first
         url = self.gutenberg_url.format(book=book,chapter=1)
         self.bookinfo = self.BookInfo(self.fetch(url))
+
+    def fetch(self, url) :
+        resp = urllib2.urlopen(url)
+        html = resp.read()
+        return lxml.html.fromstring(html)
+
+    def get_html(self, first = 1, last=-1):
+        first = max(0,first)
         if last < 0 :
-            self.last = len(self.bookinfo.chapters)
+            last = len(self.bookinfo.chapters)
         else :
-            self.last = max(last,first)
+            last = max(last,first)
         metas = []
         metas.append(E.META(name="author", value=self.bookinfo.author       ))
-        metas.append(E.META(name="booktitle", value=self.bookinfo.booktitle ))
+        metas.append(E.META(name="DC.title", value=self.bookinfo.title ))
         metas.append(E.META(name="date",   value=self.bookinfo.year+"-00-00"))
-        self.htmlbody = E.BODY(E.H1(escape(self.bookinfo.title)))
-        self.target = E.HTML(
+        htmlbody = E.BODY(E.H1(escape(self.bookinfo.title)))
+        target = E.HTML(
             E.HEAD(
                 lxml.html.fromstring(
                     "<meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8\">"
@@ -51,9 +58,9 @@ class GutenbergDownloader :
                 E.TITLE(escape(self.bookinfo.title)),
                 *metas
                 ),
-            self.htmlbody
+            htmlbody
             )
-        for chap in range(self.first - 1, self.last) :
+        for chap in range(first - 1, last) :
             content = self.fetch(
                 self.gutenberg_url.format(
                     book=self.book,
@@ -62,14 +69,8 @@ class GutenbergDownloader :
                 ).get_element_by_id("gutenb")
             for h2 in content.iterchildren(tag="h2") : 
                 h2.set("class","chapter")
-            self.htmlbody.append(content)
-#        html_string(self.target)
-        lxml.html.open_in_browser(self.target)
-
-    def fetch(self, url) :
-        resp = urllib2.urlopen(url)
-        html = resp.read()
-        return lxml.html.fromstring(html)
+            htmlbody.append(content)
+        return html_string(target)
 
 def parse_arguments() :
     import argparse
@@ -82,9 +83,25 @@ def parse_arguments() :
         type=lambda inp : abs(int(inp))
         )
     parser.add_argument(
+        "-o","--output",
+        help="Output file [default: output to stdout]",
+        default="-",
+        type=argparse.FileType(mode="w")
+        )
+    parser.add_argument(
+        "-n","--no-output",
+        help="Don't output to file or stdout",
+        action="store_true"
+        )
+    parser.add_argument(
+        "-b","--browser",
+        help="Open generated file in web browser",
+        action="store_true"
+        )
+    parser.add_argument(
         "-r", "--range",
         metavar=("FIRST","LAST"), nargs=2 ,
-        type=lambda inp : abs(int(inp)),
+        type=int,
         help="""read only FIRST to LAST chapters (inclusively).
         Use -1 to denote last chapter.
         Default Behaviour is to get the whole book.
@@ -92,9 +109,29 @@ def parse_arguments() :
         )
     return parser.parse_args()
 
-if __name__ == "__main__":
+if __name__ == "__main__" :
     args = parse_arguments()
+    gutenfetcher = GutenbergDownloader(args.book)
     if args.range :
-        gutenfetcher = GutenbergDownloader(args.book, **args.range)
+        res = gutenfetcher.get_html(*args.range)
     else :
-        gutenfetcher = GutenbergDownloader(args.book)
+        res = gutenfetcher.get_html()
+    if not args.no_output:
+        args.output.write(res)
+        args.output.close()
+    if args.browser :
+        import webbrowser
+        from urllib import pathname2url
+        from os.path import abspath
+        if not args.no_output:
+            url = pathname2url(abspath(args.output.name))
+            webbrowser.open(url)
+        else :
+            from tempfile import NamedTemporaryFile
+            tempf = NamedTemporaryFile(suffix=".html", prefix="book"+str(args.book)+"_",
+                    mode="w", delete=False)
+            tempf.write(res)
+            tempf.flush()
+            url = pathname2url(abspath(tempf.name))
+            webbrowser.open(url)
+            tempf.close()
