@@ -24,8 +24,8 @@ class GutenbergDownloader :
                 ##instead of vars(self) for security reasons
                 ##(one could do funny stuff by manipulating things
                 ##like inserting __del__ into the table...aaaa)
-            chapterselect = doctree.get_element_by_id("chapters")
-            self.chapters =[opt.get("value")  for opt in chapterselect.iterchildren(tag="option") ]
+            chapterselect = doctree.find_class("gbnav")[0]
+            self.chapters = [ li[2][ li[2].rfind("/")+1 :] for li in chapterselect.iterlinks() ]
 
         def __getattr__(self, attr) : 
             return self.info[attr]
